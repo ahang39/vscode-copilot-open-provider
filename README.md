@@ -1,3 +1,5 @@
+[English](README.md) | [简体中文](README.zh-CN.md)
+
 # Open Provider
 
 **OpenAI-compatible model provider for VS Code Copilot Chat and Agent.**
