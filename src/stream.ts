@@ -15,8 +15,8 @@ export async function streamResponse(response: Response, progress: vscode.Progre
   for await (const event of events(response)) {
     if (event === '[DONE]') { finished = true; break; }
     const chunk = object(event);
-    if (chunk.error) throw new Error(`Open Chat Bridge stream error: ${String(object(chunk.error).message ?? 'unknown error')}`);
-    if (!Array.isArray(chunk.choices)) throw new Error('Open Chat Bridge stream has no choices.');
+    if (chunk.error) throw new Error(`Open Provider stream error: ${String(object(chunk.error).message ?? 'unknown error')}`);
+    if (!Array.isArray(chunk.choices)) throw new Error('Open Provider stream has no choices.');
     for (const value of chunk.choices) {
       const choice = object(value);
       if (choice.index !== undefined && choice.index !== 0) continue;
@@ -62,16 +62,16 @@ export async function streamResponse(response: Response, progress: vscode.Progre
         }
       }
       if (choice.finish_reason) {
-        if (ABNORMAL_FINISH_REASONS.has(String(choice.finish_reason))) throw new Error(`Open Chat Bridge response incomplete: ${String(choice.finish_reason)}.`);
+        if (ABNORMAL_FINISH_REASONS.has(String(choice.finish_reason))) throw new Error(`Open Provider response incomplete: ${String(choice.finish_reason)}.`);
         finished = true;
       }
     }
   }
-  if (!finished) throw new Error('Open Chat Bridge stream ended before completion.');
+  if (!finished) throw new Error('Open Provider stream ended before completion.');
   if (details.size) {
     const raw = [...details.values()];
     const display = reasoningSeen ? '' : raw.map(detail => detail.text ?? detail.summary ?? '').join('');
-    progress.report(new vscode.LanguageModelThinkingPart(display, undefined, { newapi: { reasoning_details: raw } }));
+    progress.report(new vscode.LanguageModelThinkingPart(display, undefined, { openProvider: { reasoning_details: raw } }));
     received = true;
   }
   const complete: vscode.LanguageModelToolCallPart[] = [];
@@ -91,6 +91,6 @@ export async function streamResponse(response: Response, progress: vscode.Progre
     ids.add(call.id);
     complete.push(new vscode.LanguageModelToolCallPart(call.id, call.name, input));
   }
-  if (!received && !complete.length) throw new Error('Open Chat Bridge returned an empty response.');
+  if (!received && !complete.length) throw new Error('Open Provider returned an empty response.');
   for (const call of complete) progress.report(call);
 }

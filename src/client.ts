@@ -34,7 +34,7 @@ export async function request(baseUrl: string, apiKey: string, path: string, sig
       const chunk = await reader?.read();
       if (chunk?.value) detail = new TextDecoder().decode(chunk.value.slice(0, 4096));
     } finally { await reader?.cancel(); }
-    throw new Error(redact(`Open Chat Bridge HTTP ${response.status}: ${detail}`, apiKey));
+    throw new Error(redact(`Open Provider HTTP ${response.status}: ${detail}`, apiKey));
   }
   return response;
 }
@@ -60,7 +60,7 @@ export async function listModels(baseUrl: string, apiKey: string, signal: AbortS
 
 export async function* events(response: Response): AsyncGenerator<unknown> {
   if (!response.body || !response.headers.get('content-type')?.includes('text/event-stream')) {
-    throw new Error('Open Chat Bridge did not return a text/event-stream response.');
+    throw new Error('Open Provider did not return a text/event-stream response.');
   }
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -83,7 +83,7 @@ export async function* events(response: Response): AsyncGenerator<unknown> {
             if (payload === '[DONE]') { yield '[DONE]'; return; }
             try { yield JSON.parse(payload); }
             catch (error) {
-              if (error instanceof SyntaxError) throw new Error('Invalid JSON in Open Chat Bridge SSE stream.');
+              if (error instanceof SyntaxError) throw new Error('Invalid JSON in Open Provider SSE stream.');
               throw error;
             }
           }
@@ -94,9 +94,9 @@ export async function* events(response: Response): AsyncGenerator<unknown> {
           data.push(value);
           size += value.length;
         }
-        if (size > 8 * 1024 * 1024) throw new Error('Open Chat Bridge SSE event exceeds 8 MiB.');
+        if (size > 8 * 1024 * 1024) throw new Error('Open Provider SSE event exceeds 8 MiB.');
       }
-      if (buffer.length > 8 * 1024 * 1024) throw new Error('Open Chat Bridge SSE line exceeds 8 MiB.');
+      if (buffer.length > 8 * 1024 * 1024) throw new Error('Open Provider SSE line exceeds 8 MiB.');
       if (chunk.done) return;
     }
   } finally { await reader.cancel(); reader.releaseLock(); }

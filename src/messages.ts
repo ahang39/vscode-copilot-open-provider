@@ -62,7 +62,7 @@ export function convertMessages(messages: readonly vscode.LanguageModelChatReque
           continue;
         }
         reasoning += text;
-        const raw = object(part.metadata?.newapi).reasoning_details;
+        const raw = object(part.metadata?.openProvider).reasoning_details;
         if (Array.isArray(raw)) details.push(...raw);
       } else {
         const item = content(part, images);

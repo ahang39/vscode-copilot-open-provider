@@ -6,6 +6,10 @@ export interface Model extends vscode.LanguageModelChatInformation {
   readonly efforts: string[];
 }
 
+// Applied when neither the upstream payload nor models.dev describes a model: gateways proxy capable
+// models under unrecognized IDs, so assuming the opposite hides working features behind local errors.
+const ASSUMED_CONTEXT = 200_000;
+
 function strings(value: unknown): string[] | undefined {
   return Array.isArray(value) && value.every(item => typeof item === 'string') ? [...new Set(value)] : undefined;
 }
@@ -49,19 +53,19 @@ function lookup(id: string, data: unknown): { model: Json; source: string } {
     const choices = originals.length ? originals : matches;
     if (!choices.length) continue;
     const signatures = choices.map(({ model }) => JSON.stringify([model.modalities, model.tool_call, model.reasoning, efforts(model), model.limit]));
-    if (new Set(signatures).size > 1) return { model: {}, source: `在线能力有冲突：${candidate}；不自动采用` };
-    return { model: choices[0].model, source: `在线补全：${choices[0].provider}/${candidate}（通道能力未实测）` };
+    if (new Set(signatures).size > 1) return { model: {}, source: `Conflicting online metadata for ${candidate}; ignored` };
+    return { model: choices[0].model, source: `Online metadata: ${choices[0].provider}/${candidate} (gateway support not verified)` };
   }
-  return { model: {}, source: '在线未匹配；未知能力关闭' };
+  return { model: {}, source: 'No online match; using generic capability defaults' };
 }
 
 export function discover(payload: unknown, metadata: unknown = {}, metadataError?: string): Model[] {
   const root = object(payload);
-  if (root.error || root.success === false || !Array.isArray(root.data)) throw new Error('Invalid Open Chat Bridge /v1/models response.');
+  if (root.error || root.success === false || !Array.isArray(root.data)) throw new Error('Invalid Open Provider /v1/models response.');
   const result = new Map<string, Model>();
   for (const value of root.data) {
     const upstream = object(value);
-    if (typeof upstream.id !== 'string' || !upstream.id.trim()) throw new Error('Open Chat Bridge returned a model without an id.');
+    if (typeof upstream.id !== 'string' || !upstream.id.trim()) throw new Error('Open Provider returned a model without an id.');
     const id = upstream.id;
     const { model: known, source } = lookup(id, metadata);
     const endpoints = strings(upstream.supported_endpoint_types);
@@ -70,20 +74,20 @@ export function discover(payload: unknown, metadata: unknown = {}, metadataError
     if (output && !output.includes('text')) continue;
     const caps = object(upstream.capabilities);
     const input = strings(object(upstream.modalities).input) ?? strings(object(upstream.architecture).input_modalities);
-    const imageInput = boolean(caps.imageInput, caps.vision, upstream.vision, input?.includes('image'), strings(object(known.modalities).input)?.includes('image')) ?? false;
-    const toolCalling = boolean(caps.toolCalling, caps.tool_calling, upstream.tool_call, known.tool_call) ?? false;
+    const imageInput = boolean(caps.imageInput, caps.vision, upstream.vision, input?.includes('image'), strings(object(known.modalities).input)?.includes('image')) ?? true;
+    const toolCalling = boolean(caps.toolCalling, caps.tool_calling, upstream.tool_call, known.tool_call) ?? true;
     const upstreamEfforts = efforts(upstream);
     const reasoning = boolean(caps.reasoning, upstream.reasoning, upstreamEfforts ? upstreamEfforts.length > 0 : undefined, known.reasoning) ?? false;
     const levels = (reasoning ? upstreamEfforts ?? efforts(known) ?? [] : []).filter(level => /^[a-z][a-z0-9_-]{0,31}$/.test(level));
     const limit = object(upstream.limit);
     const fallback = object(known.limit);
-    const context = positive(upstream.context_length, limit.context, fallback.context) ?? 32768;
+    const context = positive(upstream.context_length, limit.context, fallback.context) ?? ASSUMED_CONTEXT;
     const maxOutputTokens = positive(upstream.max_output_tokens, limit.output, fallback.output) ?? 4096;
     const maxInputTokens = positive(upstream.max_input_tokens, limit.input, positive(upstream.context_length, limit.context) ? undefined : fallback.input) ?? Math.max(1, context - Math.min(maxOutputTokens, Math.floor(context / 2)));
     result.set(id, {
       id, name: typeof upstream.name === 'string' ? upstream.name : id, family: id, version: '1', isBYOK: true,
       maxInputTokens, maxOutputTokens, capabilities: { imageInput, toolCalling }, reasoning, efforts: levels,
-      detail: 'Open Chat Bridge', tooltip: `${id}\n上游字段优先；${metadataError ?? source}`,
+      detail: 'Open Provider', tooltip: `${id}\nUpstream fields take precedence; ${metadataError ?? source}`,
       ...(levels.length ? { configurationSchema: { properties: { reasoningEffort: {
         type: 'string', title: 'Thinking Effort', enum: levels, enumItemLabels: levels,
         default: levels.includes('medium') ? 'medium' : levels[0], group: 'navigation',

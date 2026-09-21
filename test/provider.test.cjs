@@ -45,8 +45,8 @@ test('discovery uses arbitrary upstream model IDs and efforts without a static m
   assert.deepEqual(models[1].efforts, []);
   assert.deepEqual(models[2].configurationSchema.properties.reasoningEffort.enum, ['low', 'medium', 'high', 'max', 'ultra']);
   assert.equal(models[2].maxInputTokens, 10000);
-  assert.equal(models[3].capabilities.toolCalling, false);
-  assert.equal(models[3].capabilities.imageInput, false);
+  assert.deepEqual(models[3].capabilities, { imageInput: true, toolCalling: true });
+  assert(models[3].maxInputTokens > 100000 && models[3].maxInputTokens <= 200000);
   assert.deepEqual(models[3].efforts, []);
   assert.throws(() => discover({ data: [{}] }));
   assert.throws(() => discover({ success: false, data: [] }));
@@ -69,16 +69,16 @@ test('online metadata normalizes only routing prefixes, preserves IDs, respects 
   assert.deepEqual(models[0].efforts, ['low', 'high', 'ultra']);
   assert.equal(models[1].capabilities.imageInput, false);
   assert.deepEqual(models[1].efforts, []);
-  assert.equal(models[2].capabilities.toolCalling, false);
+  assert.equal(models[2].capabilities.toolCalling, true);
   assert.equal(normalizeModelId('qoder-future'), 'future');
   assert.equal(normalizeModelId('other-future'), 'other-future');
   metadata.anthropic = { models: { future: { tool_call: false } } };
-  assert.equal(discover(payload, metadata)[0].capabilities.toolCalling, false);
+  assert.match(discover(payload, metadata)[0].tooltip, /Conflicting online metadata/);
 });
 
 test('stream assembles interleaved tool arguments and thinking, reports malformed arguments for retry, forwards unknown and id-less calls, validates before any tool emission', async () => {
   const out = [];
-  const body = frame({ reasoning_content: '先检查' }) + frame({ tool_calls: [
+  const body = frame({ reasoning_content: 'inspect first' }) + frame({ tool_calls: [
     { index: 0, id: 'a', function: { name: 'read', arguments: '{"path":' } },
     { index: 1, id: 'b', function: { name: 'read', arguments: '{"path":"b"}' } },
   ] }) + frame({ tool_calls: [{ index: 0, function: { arguments: '"a"}' } }] }, 'tool_calls') + 'data: [DONE]\n\n';
@@ -117,7 +117,7 @@ test('stream assembles interleaved tool arguments and thinking, reports malforme
 
 test('message conversion retains system, images, parallel tool results and reasoning state', () => {
   const history = [msg(0, new Text('system')), msg(1, new Text('look'), new Data(Buffer.from('png'), 'image/png')),
-    msg(2, new Thinking('thought', undefined, { newapi: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'opaque' }] } }), new Call('a', 'read', {}), new Call('b', 'read', {})),
+    msg(2, new Thinking('thought', undefined, { openProvider: { reasoning_details: [{ type: 'reasoning.encrypted', data: 'opaque' }] } }), new Call('a', 'read', {}), new Call('b', 'read', {})),
     msg(1, new Result('a', [new Text('file A'), new Data(Buffer.from('png'), 'image/png')]), new Result('b', [new Text('file B')]), new Text('continue'))];
   const out = convertMessages(history, true);
   assert.equal(out[0].role, 'system');
@@ -160,8 +160,8 @@ test('real HTTP provider roundtrip: discovery → reasoning/tool request → too
     let data = ''; for await (const chunk of req) data += chunk;
     const body = JSON.parse(data); requests.push(body);
     res.setHeader('content-type', 'text/event-stream');
-    if (body.messages.some(message => message.role === 'tool')) res.end(frame({ content: '完成' }, 'stop') + 'data: [DONE]\n\n');
-    else res.end(frame({ reasoning_content: '检查文件' }) + frame({ tool_calls: [{ index: 0, id: 'call-1', function: { name: 'read_file', arguments: '{"path":"a.ts"}' } }] }, 'tool_calls') + 'data: [DONE]\n\n');
+    if (body.messages.some(message => message.role === 'tool')) res.end(frame({ content: 'done' }, 'stop') + 'data: [DONE]\n\n');
+    else res.end(frame({ reasoning_content: 'inspect file' }) + frame({ tool_calls: [{ index: 0, id: 'call-1', function: { name: 'read_file', arguments: '{"path":"a.ts"}' } }] }, 'tool_calls') + 'data: [DONE]\n\n');
   });
   server.listen(0, '127.0.0.1'); await once(server, 'listening');
   t.after(() => { server.closeAllConnections(); server.close(); });
@@ -180,13 +180,13 @@ test('real HTTP provider roundtrip: discovery → reasoning/tool request → too
   assert.equal(requests[0].reasoning_effort, 'high');
   assert.equal(requests[0].model, 'codex-new-model');
   assert.equal(requests[0].tool_choice, 'required');
-  assert.equal(requests[1].messages[2].reasoning_content, '检查文件');
+  assert.equal(requests[1].messages[2].reasoning_content, 'inspect file');
   assert.equal(requests[1].messages[3].tool_call_id, 'call-1');
-  assert.equal(second[0].value, '完成');
+  assert.equal(second[0].value, 'done');
   onlineFailure = true;
   const [unmatched] = await provider.provideLanguageModelChatInformation({ silent: true }, token);
-  assert.equal(unmatched.capabilities.toolCalling, false);
-  assert.match(unmatched.tooltip, /在线能力获取失败/);
+  assert.equal(unmatched.capabilities.toolCalling, true);
+  assert.match(unmatched.tooltip, /Online metadata unavailable/);
   mode = 'error';
   await assert.rejects(provider.provideLanguageModelChatInformation({ silent: true }, token), error => error.message.includes('[redacted]') && !error.message.includes('test-secret'));
   mode = 'hang';

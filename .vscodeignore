@@ -1,3 +1,4 @@
+.github/**
 src/**
 test/**
 node_modules/**
@@ -6,3 +7,5 @@ package-lock.json
 .gitignore
 .test-profile/**
 *.vsix
+CONTRIBUTING.md
+.DS_Store
