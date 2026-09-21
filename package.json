@@ -70,7 +70,7 @@
     "compile": "tsc -p .",
     "test": "npm run compile && node --test test/*.test.cjs",
     "vscode:prepublish": "npm run compile",
-    "package": "vsce package --allow-missing-repository"
+    "package": "vsce package"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

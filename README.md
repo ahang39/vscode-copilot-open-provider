@@ -31,14 +31,14 @@ VS Code Insiders is the officially supported environment for proposed APIs.
 
 ## Install
 
-Build the VSIX:
+Download the latest `.vsix` from [GitHub Releases](https://github.com/ahang39/vscode-copilot-open-provider/releases), or build it locally:
 
 ```bash
 npm ci
 npm run package
 ```
 
-Install the generated `open-provider-<version>.vsix`, then launch VS Code with the proposed APIs enabled:
+Install `open-provider-<version>.vsix`, then launch VS Code with the proposed APIs enabled:
 
 ```bash
 code-insiders --enable-proposed-api ahang.open-provider
@@ -93,7 +93,7 @@ Token counts are estimates rather than model-specific tokenizer results.
 
 ## Privacy
 
-Chat requests go directly from VS Code to the API endpoint you configure. Open Provider does not operate a relay service.
+Chat requests go directly from VS Code to the API endpoint you configure. Open Provider does not operate a relay service and does not collect telemetry.
 
 The only optional third-party network request is the anonymous public model metadata lookup from models.dev.
 
