@@ -78,5 +78,13 @@
     "@vscode/vsce": "^3.6.0",
     "typescript": "^5.9.0"
   },
-  "preview": true
+  "preview": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ahang39/vscode-copilot-open-provider.git"
+  },
+  "homepage": "https://github.com/ahang39/vscode-copilot-open-provider#readme",
+  "bugs": {
+    "url": "https://github.com/ahang39/vscode-copilot-open-provider/issues"
+  }
 }

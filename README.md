@@ -109,6 +109,6 @@ The test suite covers URL normalization, model discovery, SSE parsing, message c
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [LICENSE](LICENSE).
 
-Minimal VS Code proposed API declarations are derived from Microsoft VS Code sources under the MIT License. See `THIRD_PARTY_NOTICES.md`.
+Minimal VS Code proposed API declarations are derived from Microsoft VS Code sources under the MIT License. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
