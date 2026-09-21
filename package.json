@@ -1,0 +1,36 @@
+{
+  "name": "newapi-copilot",
+  "displayName": "Open Chat Bridge",
+  "description": "Connect OpenAI-compatible APIs, including DeepSeek and self-hosted gateways, to Copilot Chat and Agent.",
+  "version": "0.2.6",
+  "icon": "assets/icon.png",
+  "keywords": ["openai-compatible", "deepseek", "copilot", "chat", "language-model"],
+  "publisher": "ahang",
+  "license": "MIT",
+  "engines": { "vscode": "^1.137.0" },
+  "categories": ["AI", "Chat"],
+  "main": "./out/extension.js",
+  "activationEvents": ["onStartupFinished"],
+  "enabledApiProposals": ["chatProvider", "languageModelThinkingPart", "languageModelSystem"],
+  "contributes": {
+    "languageModelChatProviders": [{ "vendor": "newapi", "displayName": "Open Chat Bridge", "managementCommand": "openChatBridge.manage" }],
+    "commands": [
+      { "command": "openChatBridge.configure", "title": "Open Chat Bridge: Configure" },
+      { "command": "openChatBridge.manage", "title": "Open Chat Bridge: 管理模型 / Manage Models" },
+      { "command": "openChatBridge.refresh", "title": "Open Chat Bridge: 刷新模型列表 / Refresh Models" }
+    ],
+    "configuration": {
+      "title": "Open Chat Bridge",
+      "properties": {
+        "openChatBridge.baseUrl": { "type": "string", "default": "", "scope": "application", "description": "OpenAI-compatible API base URL, including any path prefix. A bare host defaults to /v1. Store apiKey securely using Open Chat Bridge: Configure." }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "test": "npm run compile && node --test test/*.test.cjs",
+    "vscode:prepublish": "npm run compile",
+    "package": "vsce package --allow-missing-repository"
+  },
+  "devDependencies": { "@types/node": "^24.0.0", "@types/vscode": "1.137.0", "@vscode/vsce": "^3.6.0", "typescript": "^5.9.0" }
+}
