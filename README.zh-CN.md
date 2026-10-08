@@ -14,6 +14,8 @@ Open Provider 会从你配置的 API 自动发现模型，将它们注册到 VS 
 - 支持图片输入
 - 支持 reasoning / thinking 内容
 - 支持可配置的 `reasoning_effort`
+- 可根据 API 返回的上下文窗口选择 Context Size
+- 上报 token 用量，供 Copilot 显示上下文占用
 - 动态识别模型能力，并可通过 [models.dev](https://models.dev) 补全缺失元数据
 - API Key 保存在 VS Code SecretStorage 中
 - 无中转服务器、无运行时依赖
@@ -86,6 +88,8 @@ https://example.com/proxy/openai/v1
 
 配置完成后，在 **Manage Models → Open Provider** 中选择希望在 Copilot 中使用的模型。
 
+如果 API 提供了模型的上下文窗口，选择器中还会出现 **Context Size** 选项。选择你希望模型实际接收的窗口，该值会一并上报给 Copilot，让上下文占用指示保持准确。
+
 ## 模型发现与能力识别
 
 Open Provider 优先信任 API `/models` 返回的模型信息，并支持常见的能力字段，包括：
@@ -121,6 +125,7 @@ Open Provider 优先信任 API `/models` 返回的模型信息，并支持常见
 - `reasoning`
 - `thinking`
 - `reasoning_effort`
+- 通过 `stream_options.include_usage` 获取并上报用量
 
 Open Provider 当前面向 **Chat Completions** 协议。
 

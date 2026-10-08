@@ -2,7 +2,7 @@
   "name": "open-provider",
   "displayName": "Open Provider",
   "description": "Use any OpenAI-compatible API as a native model provider for VS Code Copilot Chat and Agent.",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "icon": "assets/icon.png",
   "keywords": [
     "openai",

@@ -13,6 +13,8 @@ Open Provider discovers models from your API, registers them in the VS Code mode
 - Tool calling, parallel tool-call streaming, and tool results
 - Image input
 - Reasoning/thinking content and configurable reasoning effort
+- Context-size selection based on the context window reported by the API
+- Token-usage reporting for Copilot's context indicator
 - Dynamic model capability detection with optional metadata fallback from [models.dev](https://models.dev)
 - API keys stored in VS Code SecretStorage
 - No proxy server and no runtime dependencies
@@ -69,6 +71,8 @@ A bare host defaults to `/v1`. If the URL already contains a path, Open Provider
 
 After configuration, open **Manage Models → Open Provider** and select the models you want to use.
 
+Models whose context window is known also offer a **Context Size** option in the picker. Pick the window that matches what you want the model to receive; the value is reported back to Copilot so its context indicator stays accurate.
+
 ## Model discovery
 
 Open Provider treats the API response as the source of truth. It supports common capability fields for image input, tool calling, reasoning, context limits, and reasoning effort.
@@ -88,6 +92,7 @@ Open Provider supports:
 - tool results
 - `reasoning_content`, `reasoning`, and `thinking`
 - `reasoning_effort`
+- usage reporting via `stream_options.include_usage`
 
 It targets the Chat Completions protocol. Responses-only APIs and vendor-native message APIs are not supported.
 
