@@ -6,6 +6,17 @@ export type ResponsePart = vscode.LanguageModelResponsePart | vscode.LanguageMod
 
 const ABNORMAL_FINISH_REASONS = new Set(['content_filter', 'error', 'length']);
 
+// Copilot Chat's context-usage indicator is driven by a DataPart with this mimeType (CustomDataPartMimeTypes.Usage).
+const USAGE_MIME_TYPE = 'usage';
+
+export function usagePart(usage: Json): vscode.LanguageModelDataPart | undefined {
+  const prompt = typeof usage.prompt_tokens === 'number' && Number.isFinite(usage.prompt_tokens) ? Math.max(0, usage.prompt_tokens) : undefined;
+  const completion = typeof usage.completion_tokens === 'number' && Number.isFinite(usage.completion_tokens) ? Math.max(0, usage.completion_tokens) : undefined;
+  if (prompt === undefined && completion === undefined) return undefined;
+  const total = typeof usage.total_tokens === 'number' && Number.isFinite(usage.total_tokens) ? Math.max(0, usage.total_tokens) : (prompt ?? 0) + (completion ?? 0);
+  return new vscode.LanguageModelDataPart(new TextEncoder().encode(JSON.stringify({ prompt_tokens: prompt ?? 0, completion_tokens: completion ?? 0, total_tokens: total })), USAGE_MIME_TYPE);
+}
+
 export async function streamResponse(response: Response, progress: vscode.Progress<ResponsePart>): Promise<void> {
   const calls = new Map<number, { id: string; name: string; args: string }>();
   const details = new Map<number, Json>();
@@ -17,6 +28,8 @@ export async function streamResponse(response: Response, progress: vscode.Progre
     const chunk = object(event);
     if (chunk.error) throw new Error(`Open Provider stream error: ${String(object(chunk.error).message ?? 'unknown error')}`);
     if (!Array.isArray(chunk.choices)) throw new Error('Open Provider stream has no choices.');
+    const usage = usagePart(object(chunk.usage));
+    if (usage) progress.report(usage);
     for (const value of chunk.choices) {
       const choice = object(value);
       if (choice.index !== undefined && choice.index !== 0) continue;

@@ -110,6 +110,7 @@ export class CompatibleChatProvider implements vscode.LanguageModelChatProvider<
     if (!tools.length && options.toolMode === vscode.LanguageModelChatToolMode.Required) throw new Error('A required tool request needs at least one tool.');
     const body: Json = {
       model: model.id, stream: true, messages: convertMessages(messages, !!model.capabilities.imageInput),
+      stream_options: { include_usage: true },
       ...(effort !== undefined ? { reasoning_effort: effort } : {}),
       ...(tools.length ? {
         tools: tools.map(tool => ({ type: 'function', function: { name: tool.name, description: tool.description, parameters: tool.inputSchema ?? { type: 'object', properties: {} } } })),

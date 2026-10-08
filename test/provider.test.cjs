@@ -48,6 +48,19 @@ test('discovery uses arbitrary upstream model IDs and efforts without a static m
   assert.deepEqual(models[3].capabilities, { imageInput: true, toolCalling: true });
   assert(models[3].maxInputTokens > 100000 && models[3].maxInputTokens <= 200000);
   assert.deepEqual(models[3].efforts, []);
+  const fallback = discover({ data: [{ id: 'unknown' }] })[0];
+  assert.equal(fallback.maxInputTokens, 195904);
+  assert.equal(fallback.configurationSchema, undefined);
+  const big = discover({ data: [{ id: 'big', context_length: 1048576, max_output_tokens: 131072 }] })[0];
+  assert.deepEqual(big.configurationSchema.properties.contextSize, {
+    type: 'number', title: 'Context Size', enum: [200000, 300000, 500000, 1000000],
+    enumItemLabels: ['200K', '300K', '500K', '1M'], default: 1000000, group: 'tokens',
+  });
+  const odd = discover({ data: [{ id: 'odd', context_length: 272000 }] })[0];
+  assert.deepEqual(odd.configurationSchema.properties.contextSize.enum, [200000, 272000]);
+  assert.equal(odd.configurationSchema.properties.contextSize.default, 272000);
+  const gpt = discover({ data: [{ id: 'gpt-5.4' }] }, {}) [0];
+  assert.equal(gpt.configurationSchema, undefined);
   assert.throws(() => discover({ data: [{}] }));
   assert.throws(() => discover({ success: false, data: [] }));
 });
@@ -104,6 +117,12 @@ test('stream assembles interleaved tool arguments and thinking, reports malforme
   const refused = [];
   await streamResponse(sse(frame({ refusal: 'I cannot help with that.' }, 'stop')), { report: part => refused.push(part) });
   assert.deepEqual(refused.map(part => part.value), ['I cannot help with that.']);
+  const usage = [];
+  await streamResponse(sse(frame({ content: 'hi' }, 'stop') + 'data: {"choices":[],"usage":{"prompt_tokens":100,"completion_tokens":5,"total_tokens":105}}\n\n' + 'data: [DONE]\n\n'), { report: part => usage.push(part) });
+  const usageDataPart = usage.find(part => part instanceof Data);
+  assert(usageDataPart);
+  assert.equal(usageDataPart.mimeType, 'usage');
+  assert.deepEqual(JSON.parse(new TextDecoder().decode(usageDataPart.data)), { prompt_tokens: 100, completion_tokens: 5, total_tokens: 105 });
   for (const invalid of [
     frame({ content: 'cut off' }),
     frame({ content: 'partial' }, 'length'),

@@ -34,6 +34,13 @@ export function normalizeModelId(id: string): string {
   return id.replace(/^(?:codex|qoder)-/, '');
 }
 
+// Context tiers offered in the model picker; each defaults to the tier closest to the model's real window.
+const CONTEXT_TIERS = [200_000, 300_000, 500_000, 1_000_000];
+
+function contextTier(context: number): number[] {
+  return [...new Set(CONTEXT_TIERS.map(tier => Math.min(tier, context)))].sort((a, b) => a - b);
+}
+
 export async function onlineMetadata(signal: AbortSignal): Promise<unknown> {
   const response = await fetch('https://models.dev/api.json', { signal, redirect: 'error', credentials: 'omit' });
   if (!response.ok) throw new Error(`models.dev HTTP ${response.status}`);
@@ -84,14 +91,23 @@ export function discover(payload: unknown, metadata: unknown = {}, metadataError
     const context = positive(upstream.context_length, limit.context, fallback.context) ?? ASSUMED_CONTEXT;
     const maxOutputTokens = positive(upstream.max_output_tokens, limit.output, fallback.output) ?? 4096;
     const maxInputTokens = positive(upstream.max_input_tokens, limit.input, positive(upstream.context_length, limit.context) ? undefined : fallback.input) ?? Math.max(1, context - Math.min(maxOutputTokens, Math.floor(context / 2)));
+    const tiers = contextTier(context);
+    const nearest = tiers.reduce((best, tier) => Math.abs(tier - context) < Math.abs(best - context) ? tier : best);
     result.set(id, {
       id, name: typeof upstream.name === 'string' ? upstream.name : id, family: id, version: '1', isBYOK: true,
       maxInputTokens, maxOutputTokens, capabilities: { imageInput, toolCalling }, reasoning, efforts: levels,
       detail: 'Open Provider', tooltip: `${id}\nUpstream fields take precedence; ${metadataError ?? source}`,
-      ...(levels.length ? { configurationSchema: { properties: { reasoningEffort: {
-        type: 'string', title: 'Thinking Effort', enum: levels, enumItemLabels: levels,
-        default: levels.includes('medium') ? 'medium' : levels[0], group: 'navigation',
-      } } } } : {}),
+      ...(levels.length || tiers.length > 1 ? { configurationSchema: { properties: {
+        ...(levels.length ? { reasoningEffort: {
+          type: 'string', title: 'Thinking Effort', enum: levels, enumItemLabels: levels,
+          default: levels.includes('medium') ? 'medium' : levels[0], group: 'navigation',
+        } } : {}),
+        ...(tiers.length > 1 ? { contextSize: {
+          type: 'number', title: 'Context Size', enum: tiers,
+          enumItemLabels: tiers.map(tier => tier >= 1_000_000 ? '1M' : `${Math.round(tier / 1000)}K`),
+          default: nearest, group: 'tokens',
+        } } : {}),
+      } } } : {}),
     });
   }
   return [...result.values()];
